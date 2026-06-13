@@ -6,7 +6,8 @@
 		"packages": [
 			"accounts-stub",
 			"contracts",
-			"bot"
+			"bot",
+			"web"
 		],
 		"nohoist": [
 			"**/hardhat",
