@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  /* Use the project's Geist sans (loaded in layout.tsx) instead of Arial. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Landing-page motion + texture. Pure CSS so it runs without JS and stays
+   cheap. `.sv-reveal` elements start hidden and animate in; stagger them with
+   an inline `animation-delay`. `.sv-flow-dot` are the streaming-capital dots.
+--------------------------------------------------------------------------- */
+@keyframes sv-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sv-reveal {
+  opacity: 0;
+  animation: sv-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-reveal {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* A dot travelling along the stream track from wallet → bot. */
+@keyframes sv-flow {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.sv-flow-dot {
+  position: absolute;
+  top: 50%;
+  height: 8px;
+  width: 8px;
+  margin-top: -4px;
+  border-radius: 9999px;
+  background: #34d399;
+  box-shadow: 0 0 10px 2px rgba(52, 211, 153, 0.7);
+  animation: sv-flow 2.4s linear infinite;
+}
+
+/* Soft breathing glow behind the hero. */
+@keyframes sv-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+.sv-glow {
+  animation: sv-glow 6s ease-in-out infinite;
+}
+
+/* Faint trading-grid backdrop. */
+.sv-grid {
+  background-image: linear-gradient(
+      to right,
+      rgba(63, 63, 70, 0.12) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(63, 63, 70, 0.12) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+}
