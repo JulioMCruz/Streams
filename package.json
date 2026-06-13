@@ -4,7 +4,8 @@
 	"version": "0.1.0",
 	"workspaces": {
 		"packages": [
-			"accounts-stub"
+			"accounts-stub",
+			"contracts"
 		],
 		"nohoist": [
 			"**/hardhat",
