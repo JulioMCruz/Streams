@@ -51,7 +51,7 @@ sequenceDiagram
     participant SF as Superfluid
 
     U->>W: choose budget + stream rate + target token
-    W->>L: EIP-7702 delegation + EIP-2612 permit
+    W->>L: sign EIP-7702 delegation (Simple7702Account) + EIP-2612 permit
     L-->>U: clear-sign on device (ERC-7730)
     L-->>W: signed authorization
     W->>SV: startStreamBot — one type-4 tx
@@ -88,7 +88,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A["Ledger<br/>sign onboarding"] --> B["USDC wrapped<br/>to USDCx"]
+    A["Ledger signs<br/>EIP-7702 delegation"] --> B["USDC wrapped<br/>to USDCx"]
     B --> C["SmartAccount<br/>deployed"]
     C --> D["Stream open<br/>user to account"]
     D --> E["Bot DCA tick<br/>swap on Uniswap"]
