@@ -1,0 +1,23 @@
+# Build artifacts
+artifacts
+cache
+coverage
+coverage.json
+deployments
+gas-report.txt
+
+# Node modules
+node_modules
+
+# Lock files
+bun.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Output or logs
+.openzeppelin
+*.log
+
+# VS Code
+.vscode
