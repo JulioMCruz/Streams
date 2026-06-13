@@ -74,3 +74,22 @@ export function ChainlinkLogo({ className }: IconProps) {
 		/>
 	)
 }
+
+/** Ledger — hardware-signed onboarding (EIP-7702 + clear signing). */
+export function LedgerLogo({ className }: IconProps) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className ?? 'h-4 w-4'}
+			aria-label="Ledger"
+			role="img"
+		>
+			<path
+				d="M3 3h7v2H5v5H3V3Zm18 0v7h-2V5h-5V3h7ZM3 14h2v5h5v2H3v-7Zm16 0h2v7h-7v-2h5v-5Z"
+				fill="currentColor"
+			/>
+		</svg>
+	)
+}
