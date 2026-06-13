@@ -1,11 +1,7 @@
 'use client'
 
 import { type Address, formatUnits } from 'viem'
-import {
-	useReadContract,
-	useWaitForTransactionReceipt,
-	useWriteContract
-} from 'wagmi'
+import { useReadContract } from 'wagmi'
 
 import {
 	ADDRESSES,
@@ -14,6 +10,7 @@ import {
 	streamVaultsAbi
 } from '@/lib/contracts'
 import { SECONDS_PER_DAY } from '@/lib/format'
+import { useDualWrite } from '@/lib/use-dual-write'
 
 import { Card } from './Card'
 import { Field, inputCls } from './Field'
@@ -52,16 +49,13 @@ export function StreamPanel({
 		query: { refetchInterval: 5_000 }
 	})
 
-	const { writeContract, data: txHash, isPending } = useWriteContract()
-	const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
-		hash: txHash
+	const { write, isPending: busy, error } = useDualWrite(() => {
+		void flowrateQuery.refetch()
 	})
-	if (isSuccess) void flowrateQuery.refetch()
 
 	const currentRate = (flowrateQuery.data as bigint | undefined) ?? 0n
 	const currentPerDay = currentRate * SECONDS_PER_DAY
 	const streamActive = currentRate > 0n
-	const busy = isPending || confirming
 
 	// rules() → [maxSlippageBps, minTradeAmount (USDC, 6 dec), settlementAddress]
 	const rules = rulesQuery.data as
@@ -75,7 +69,7 @@ export function StreamPanel({
 	const derivedPerDay = derivedFlowrate * SECONDS_PER_DAY
 
 	const grant = () =>
-		writeContract({
+		void write({
 			address: ADDRESSES.cfaForwarder,
 			abi: cfaForwarderAbi,
 			functionName: 'grantPermissions',
@@ -83,7 +77,7 @@ export function StreamPanel({
 		})
 
 	const revoke = () =>
-		writeContract({
+		void write({
 			address: ADDRESSES.cfaForwarder,
 			abi: cfaForwarderAbi,
 			functionName: 'revokePermissions',
@@ -91,7 +85,7 @@ export function StreamPanel({
 		})
 
 	const setStreamFlowrate = (flowrate: bigint) =>
-		writeContract({
+		void write({
 			address: ADDRESSES.streamVaults,
 			abi: streamVaultsAbi,
 			functionName: 'setStream',
@@ -164,6 +158,9 @@ export function StreamPanel({
 					Revoke (kill switch)
 				</TxButton>
 			</div>
+			{error ? (
+				<p className="mt-3 break-words text-xs text-rose-400">{error}</p>
+			) : null}
 		</Card>
 	)
 }

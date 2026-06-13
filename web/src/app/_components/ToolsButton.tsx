@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from 'react'
 
-import { BotLookup } from './BotLookup'
 import { FaucetCard } from './Faucet'
 import { SimulateStreamPanel, type StreamSim } from './SimulateStream'
 
 /**
  * Floating action button (bottom-right) that opens a "Tools" modal. Groups the
  * dev/utility surfaces that don't belong in the always-on dashboard: the local
- * faucet, the stream simulator, and public bot discovery. Faucet and simulator
- * self-hide off the local chain, so on a real network the modal just shows
- * discovery. Keeping these here is what lets the dashboard fit the viewport
- * without scrolling.
+ * faucet and the stream simulator. Both self-hide off the local chain, so on a
+ * real network the modal is empty of dev tools. Keeping these here is what lets
+ * the dashboard fit the viewport without scrolling.
  *
  * The simulator engine lives in the dashboard (`useStreamSimulator`), not here,
  * so it keeps running after the modal closes — we only render its controls.
@@ -66,7 +64,6 @@ export function ToolsButton({ sim }: { sim: StreamSim }) {
 						<div className="flex flex-col gap-4">
 							<FaucetCard />
 							<SimulateStreamPanel sim={sim} />
-							<BotLookup />
 						</div>
 					</div>
 				</div>

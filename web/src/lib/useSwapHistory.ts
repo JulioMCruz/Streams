@@ -59,23 +59,20 @@ export function useSwapHistory(smartAccount?: Address) {
 		queryFn: async (): Promise<Swap[]> => {
 			if (!publicClient || !smartAccount) return []
 
-			const getLogsFrom = (fromBlock: bigint | 'earliest') =>
-				publicClient.getLogs({
-					address: smartAccount,
-					event: executedEvent,
-					fromBlock,
-					toBlock: 'latest'
-				})
-
-			let logs
-			try {
-				logs = await getLogsFrom('earliest')
-			} catch {
-				// Public RPCs often cap getLogs ranges — retry the last ~50k blocks.
-				const latest = await publicClient.getBlockNumber()
-				const from = latest > 50_000n ? latest - 50_000n : 0n
-				logs = await getLogsFrom(from)
-			}
+			// Public endpoints (mainnet.base.org) reject a wide `eth_getLogs`
+			// with 413 / range errors, so scan a bounded recent window that
+			// stays under the cap (~10k blocks). The smart account is created
+			// near head, so this covers its history; on the local chain `head`
+			// is tiny and `from` clamps to 0 (genesis).
+			const WINDOW = 9_000n
+			const head = await publicClient.getBlockNumber()
+			const from = head > WINDOW ? head - WINDOW : 0n
+			const logs = await publicClient.getLogs({
+				address: smartAccount,
+				event: executedEvent,
+				fromBlock: from,
+				toBlock: 'latest'
+			})
 
 			// Resolve block timestamps once per unique block.
 			const blocks = [...new Set(logs.map(l => l.blockNumber))].filter(

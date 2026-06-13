@@ -46,15 +46,9 @@ export function UniswapLogo({ className }: IconProps) {
 	)
 }
 
-/** ENS — the bot's on-chain name. */
-export function EnsLogo({ className }: IconProps) {
-	return (
-		<Mark
-			src="/img/ethereum-name-service-ens-logo.svg"
-			alt="ENS"
-			className={className}
-		/>
-	)
+/** Ledger — the device that is the agent's trust layer (EIP-7702 + clear signing). */
+export function LedgerLogo({ className }: IconProps) {
+	return <Mark src="/img/ledger-logo.svg" alt="Ledger" className={className} />
 }
 
 /** Ethereum / WETH — the alternate DCA target. */

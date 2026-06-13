@@ -40,6 +40,38 @@ type WalletContextValue = {
 
 const WalletContext = createContext<WalletContextValue | null>(null)
 
+/**
+ * Extract a human-readable message from an unknown throw. DMK / WebHID errors
+ * are plain objects (e.g. `{ _tag, originalError, errorCode }`), NOT `Error`
+ * instances, so `String(e)` would render the useless `"[object Object]"`. Pull
+ * the most descriptive field, append the nested cause, and fall back to JSON so
+ * the device error is never swallowed.
+ */
+function readableError(e: unknown): string {
+	if (e instanceof Error) return e.message
+	if (typeof e === 'string') return e
+	if (e && typeof e === 'object') {
+		const o = e as Record<string, unknown>
+		const head = o.message ?? o._tag ?? o.errorCode ?? o.name
+		const cause = o.originalError ?? o.cause
+		const causeMsg =
+			cause instanceof Error
+				? cause.message
+				: cause && typeof cause === 'object' && 'message' in cause
+					? String((cause as Record<string, unknown>).message)
+					: undefined
+		if (typeof head === 'string') {
+			return causeMsg && causeMsg !== head ? `${head}: ${causeMsg}` : head
+		}
+		try {
+			return JSON.stringify(e)
+		} catch {
+			/* circular — fall through */
+		}
+	}
+	return String(e)
+}
+
 export function WalletProvider({ children }: { children: ReactNode }) {
 	const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
 	const [ledgerSession, setLedgerSession] = useState<LedgerSession | null>(null)
@@ -62,9 +94,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		try {
 			// Dynamic import → DMK/WebHID loads only in the browser, on demand.
 			const { connectLedger: connect } = await import('@/lib/ledger-7702')
-			setLedgerSession(await connect())
+			const session = await connect()
+			console.log('[Ledger] wallet address:', session.address)
+			setLedgerSession(session)
 		} catch (e) {
-			setLedgerError(e instanceof Error ? e.message : String(e))
+			setLedgerError(readableError(e))
 			throw e
 		} finally {
 			setLedgerConnecting(false)

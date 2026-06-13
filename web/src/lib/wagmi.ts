@@ -49,7 +49,10 @@ export const wagmiAdapter = new WagmiAdapter({
 	/// Explicit transports so reads (incl. `eth_getLogs` for swap history) hit a
 	/// known endpoint per chain instead of an opaque default proxy.
 	transports: {
-		[base.id]: http(BASE_RPC_URL),
+		/// `batch` coalesces the concurrent `eth_call`s from the read hooks into
+		/// a single HTTP POST, keeping the public endpoint (mainnet.base.org)
+		/// under its rate limit instead of returning 429.
+		[base.id]: http(BASE_RPC_URL, { batch: true }),
 		[baseSepolia.id]: http(),
 		[LOCAL_CHAIN_ID]: http(LOCAL_RPC_URL)
 	}
