@@ -1,0 +1,31 @@
+{
+	"extends": "solhint:recommended",
+	"plugins": ["prettier"],
+	"rules": {
+		"compiler-version": ["error", ">=0.8.20 <0.9.0"],
+
+		"func-visibility": ["error", { "ignoreConstructors": true }],
+		"state-visibility": "error",
+		"ordering": "warn",
+
+		"avoid-suicide": "error",
+		"avoid-throw": "error",
+		"avoid-low-level-calls": "warn",
+		"check-send-result": "error",
+		"avoid-sha3": "error",
+		"not-rely-on-time": "warn",
+		"not-rely-on-block-hash": "warn",
+		"payable-fallback": "error",
+
+		"reason-string": ["error", { "maxLength": 64 }],
+		"no-empty-blocks": "error",
+		"no-inline-assembly": "warn",
+		"max-line-length": ["warn", 120],
+		"explicit-types": "warn",
+		"no-console": "warn",
+
+		"prettier/prettier": "warn",
+
+		"use-natspec": "off"
+	}
+}
