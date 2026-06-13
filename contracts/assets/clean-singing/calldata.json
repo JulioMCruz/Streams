@@ -1,0 +1,86 @@
+{
+  "$schema": "../../specs/erc7730-v2.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0x2F12814baF2E3fA5c76c26F9d4Aa0a9CfdC3EBaa"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "owner": "StreamVaults",
+    "info": {
+      "url": "https://streamvault.eth"
+    }
+  },
+  "display": {
+    "formats": {
+      "startStreamBot(address superToken, uint256 underlyingAmount, int96 rate, (uint16 maxSlippageBps, uint256 minTradeAmount, address settlementAddress, address[] targetTokens) rules, (uint256 deadline, uint8 v, bytes32 r, bytes32 s) permitSig)": {
+        "intent": "Start your StreamBot",
+        "fields": [
+          {
+            "path": "#.underlyingAmount",
+            "label": "Budget to stream",
+            "format": "tokenAmount",
+            "params": {
+              "token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+            }
+          },
+          {
+            "path": "#.rate",
+            "label": "Stream rate /sec",
+            "format": "raw"
+          },
+          {
+            "path": "#.rules.minTradeAmount",
+            "label": "Min trade size",
+            "format": "tokenAmount",
+            "params": {
+              "token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+            }
+          },
+          {
+            "path": "#.rules.maxSlippageBps",
+            "label": "Max slippage (bps)",
+            "format": "raw"
+          },
+          {
+            "path": "#.rules.settlementAddress",
+            "label": "Send swaps to",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "eoa",
+                "wallet",
+                "contract"
+              ]
+            }
+          },
+          {
+            "path": "#.rules.targetTokens.[]",
+            "label": "Tokens to buy",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "token"
+              ]
+            }
+          },
+          {
+            "label": "Super Token",
+            "path": "#.superToken",
+            "visible": "never"
+          },
+          {
+            "label": "Permit Sig",
+            "path": "#.permitSig",
+            "visible": "never"
+          }
+        ]
+      }
+    }
+  }
+}
