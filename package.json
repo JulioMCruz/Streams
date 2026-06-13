@@ -1,0 +1,38 @@
+{
+	"name": "streams",
+	"private": true,
+	"version": "0.1.0",
+	"workspaces": {
+		"packages": [
+			"packages/*"
+		],
+		"nohoist": [
+			"**/hardhat",
+			"**/hardhat/**",
+			"**/hardhat-deploy",
+			"**/hardhat-deploy/**",
+			"**/@nomicfoundation/**",
+			"**/@openzeppelin/hardhat-upgrades",
+			"**/@openzeppelin/hardhat-upgrades/**",
+			"**/@superfluid-finance/**"
+		]
+	},
+	"scripts": {
+		"contracts": "yarn workspace @streams/contracts",
+		"web": "yarn workspace @streams/web",
+		"compile": "yarn workspace @streams/contracts compile",
+		"deploy": "yarn workspace @streams/contracts deploy",
+		"dev": "yarn workspace @streams/web dev",
+		"build": "yarn workspace @streams/web build",
+		"start": "yarn workspace @streams/web start",
+		"format": "yarn workspaces run format",
+		"lint": "yarn workspaces run lint",
+		"lint:fix": "yarn workspace @streams/contracts lint:fix",
+		"test": "yarn workspace @streams/contracts test",
+		"test:coverage": "yarn workspace @streams/contracts test:coverage"
+	},
+	"engines": {
+		"node": ">=20",
+		"yarn": "^1.22.0"
+	}
+}
