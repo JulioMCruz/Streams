@@ -1,0 +1,24 @@
+# deps / build outputs / vcs — regenerated or not needed in the image
+**/node_modules
+**/.next
+.git
+.gitignore
+
+# secrets / local env (passed at runtime, never baked into the image)
+**/.env
+**/.env.local
+**/.env.*
+!**/.env.example
+
+# hardhat artifacts/deploys (regenerated in the build / by the entrypoint)
+contracts/artifacts
+contracts/cache
+contracts/coverage
+contracts/deployments
+contracts/typechain
+contracts/typechain-types
+
+# misc
+**/*.log
+**/.DS_Store
+**/coverage
