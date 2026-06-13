@@ -1,0 +1,17 @@
+{
+	"all": true,
+	"src": ["src"],
+	"include": ["src/**/*.ts"],
+	"exclude": [
+		"src/**/*.d.ts",
+		"src/ports/**",
+		"src/domain/models/**",
+		"src/entry-point/**"
+	],
+	"reporter": ["text", "text-summary", "html"],
+	"check-coverage": true,
+	"branches": 100,
+	"lines": 100,
+	"functions": 100,
+	"statements": 100
+}

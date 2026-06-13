@@ -1,0 +1,42 @@
+{
+	"name": "@streams/bot",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"start": "tsx src/entry-point/main.ts",
+		"once": "RUN_ONCE=1 tsx src/entry-point/main.ts",
+		"e2e": "bash e2e/run-e2e.sh",
+		"bot:local": "tsx e2e/run-bot-local.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "mocha",
+		"coverage": "c8 mocha",
+		"test:coverage": "c8 mocha",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
+	},
+	"dependencies": {
+		"dotenv": "^17.3.1",
+		"viem": "^2.46.3"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/chai": "^5.2.3",
+		"@types/chai-as-promised": "^8.0.2",
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^20",
+		"@types/sinon": "^21.0.1",
+		"@typescript-eslint/parser": "^8.60.0",
+		"c8": "^11.0.0",
+		"chai": "4",
+		"chai-as-promised": "^8.0.2",
+		"eslint": "^10.4.0",
+		"eslint-plugin-simple-import-sort": "^13.0.0",
+		"globals": "^17.6.0",
+		"mocha": "^11.7.6",
+		"sinon": "^22.0.0",
+		"tsx": "^4.19.2",
+		"typescript": "^5.5.0",
+		"typescript-eslint": "^8.60.0"
+	}
+}
