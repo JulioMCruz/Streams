@@ -1,0 +1,15 @@
+{
+  "schedule": "*/30 * * * * *",
+  "chainSelector": "0",
+  "chainId": 0,
+  "addresses": {
+    "streamVaults": "0x0000000000000000000000000000000000000000",
+    "streamVaultsConfig": "0x0000000000000000000000000000000000000000",
+    "superTokenIn": "0x0000000000000000000000000000000000000000",
+    "tokenIn": "0x0000000000000000000000000000000000000000"
+  },
+  "discoveryFromBlock": "0",
+  "superTokenDecimals": 18,
+  "underlyingDecimals": 6,
+  "uniswapApiBase": "https://trading-api-labs.interface.gateway.uniswap.org"
+}

@@ -1,0 +1,16 @@
+{
+  "schedule": "*/30 * * * * *",
+  "chainSelector": "15971525489660198786",
+  "chainId": 8453,
+  "addresses": {
+    "streamVaults": "0x773AfE133005Ab5780f3DD651D236Aa8f1363EEc",
+    "streamVaultsConfig": "0x0d05C398ad8989FEab4d67b2BC09FE9AaaCd5Cc5",
+    "superTokenIn": "0xD04383398dD2426297da660F9CCA3d439AF9ce1b",
+    "tokenIn": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  },
+  "discoveryFromBlock": "47286889",
+  "superTokenDecimals": 18,
+  "underlyingDecimals": 6,
+  "uniswapApiBase": "https://trading-api-labs.interface.gateway.uniswap.org",
+  "uniswapApiKey": ""
+}
