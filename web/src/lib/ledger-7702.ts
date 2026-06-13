@@ -46,6 +46,8 @@ import {
 import { base } from 'viem/chains'
 import { recoverAuthorizationAddress } from 'viem/utils'
 
+import { ADDRESSES } from '@/lib/contracts'
+
 // ── Constants (wire to NEXT_PUBLIC_* / lib/contracts.ts when integrating) ──────
 const CHAIN_ID = 8453 // Base mainnet
 const DERIVATION_PATH = "44'/60'/0'/0/0"
@@ -54,7 +56,10 @@ const SIMPLE_7702_ACCOUNT: Address = '0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9
 
 const USDC: Address = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const USDCX: Address = '0xD04383398dD2426297da660F9CCA3d439AF9ce1b'
-const STREAM_VAULTS: Address = '0xaC556c528A52E8E239a50AAe8cA03F0e6b2e6fcC'
+// Read from env (NEXT_PUBLIC_STREAM_VAULTS_ADDRESS) so a redeploy doesn't leave
+// this hardcoded at the old contract — that's exactly what broke the Ledger
+// onboarding (batch built against the previous StreamVaults → reverted).
+const STREAM_VAULTS: Address = ADDRESSES.streamVaults
 const RPC_URL = 'https://mainnet.base.org'
 
 const ACCOUNT_ABI = [
@@ -136,6 +141,77 @@ const SV_ABI = [
 
 const CFA_FORWARDER: Address = '0xcfA132E353cB4E398080B9700609bb008eceB125'
 const ZERO_BYTES32: Hex = `0x${'0'.repeat(64)}`
+
+// Previous StreamVaults deployment. Funds from an onboarding that ran against it
+// (before the address fix) are recovered here via `recoverOldStream`.
+const OLD_STREAM_VAULTS: Address = '0xaC556c528A52E8E239a50AAe8cA03F0e6b2e6fcC'
+
+const CFA_DELETE_ABI = [
+	{
+		type: 'function',
+		name: 'deleteFlow',
+		stateMutability: 'nonpayable',
+		inputs: [
+			{ name: 'token', type: 'address' },
+			{ name: 'sender', type: 'address' },
+			{ name: 'receiver', type: 'address' },
+			{ name: 'userData', type: 'bytes' },
+		],
+		outputs: [{ type: 'bool' }],
+	},
+] as const
+const SA_WITHDRAW_ABI = [
+	{
+		type: 'function',
+		name: 'withdrawAll',
+		stateMutability: 'nonpayable',
+		inputs: [
+			{ name: 'token', type: 'address' },
+			{ name: 'to', type: 'address' },
+		],
+		outputs: [],
+	},
+] as const
+const SV_READ_ABI = [
+	{
+		type: 'function',
+		name: 'smartAccountOf',
+		stateMutability: 'view',
+		inputs: [{ name: 'user', type: 'address' }],
+		outputs: [{ type: 'address' }],
+	},
+] as const
+const ZERO_ADDR = '0x0000000000000000000000000000000000000000' as const
+
+const DOWNGRADE_ABI = [
+	{
+		type: 'function',
+		name: 'downgrade',
+		stateMutability: 'nonpayable',
+		inputs: [{ name: 'amount', type: 'uint256' }],
+		outputs: [],
+	},
+] as const
+const ERC20_ABI = [
+	{
+		type: 'function',
+		name: 'transfer',
+		stateMutability: 'nonpayable',
+		inputs: [
+			{ name: 'to', type: 'address' },
+			{ name: 'amount', type: 'uint256' },
+		],
+		outputs: [{ type: 'bool' }],
+	},
+	{
+		type: 'function',
+		name: 'balanceOf',
+		stateMutability: 'view',
+		inputs: [{ name: 'account', type: 'address' }],
+		outputs: [{ type: 'uint256' }],
+	},
+] as const
+const USDCX_TO_USDC_DIVISOR = 10n ** 12n // USDCx(18) → USDC(6)
 
 export type StreamBotRules = {
 	maxSlippageBps: number
@@ -236,6 +312,18 @@ export async function startStreamBotWithLedger(
 	const { budget, rate, rules } = args
 	const publicClient = mkClient(args.rpcUrl)
 
+	console.log('[Ledger 7702] onboarding start', {
+		eoa: address,
+		streamVaults: STREAM_VAULTS,
+		usdcx: USDCX,
+		usdc: USDC,
+		cfaForwarder: CFA_FORWARDER,
+		delegate: SIMPLE_7702_ACCOUNT,
+		budget: budget.toString(),
+		rate: rate.toString(),
+		rules,
+	})
+
 	// Self-executed type-4 tx: the outer tx consumes `txNonce`, so the 7702
 	// authorization must carry `txNonce + 1` (the well-known self-sponsor rule).
 	const txNonce = await publicClient.getTransactionCount({ address })
@@ -302,6 +390,246 @@ export async function startStreamBotWithLedger(
 		r: txSig.r,
 		s: txSig.s,
 		yParity: txSig.v >= 27 ? txSig.v - 27 : txSig.v,
+	})
+	const hash = await publicClient.sendRawTransaction({ serializedTransaction: signed })
+	console.log(
+		'[Ledger 7702] tx submitted:',
+		hash,
+		'→ https://basescan.org/tx/' + hash,
+	)
+	// Non-blocking: surface the on-chain result so a silent internal revert
+	// (an executeBatch sub-call) is visible even if the type-4 tx "succeeds".
+	publicClient
+		.waitForTransactionReceipt({ hash })
+		.then((r) =>
+			console.log('[Ledger 7702] receipt status:', r.status, '| block', r.blockNumber, '| logs', r.logs.length),
+		)
+		.catch((e) => console.error('[Ledger 7702] receipt error:', e))
+	return hash
+}
+
+/**
+ * Recover funds stranded on the PREVIOUS StreamVaults deployment.
+ *
+ * An onboarding that ran while `STREAM_VAULTS` was hardcoded to the old contract
+ * opened a real Superfluid stream (EOA → old SmartAccount) and locked the rest
+ * as the stream's buffer/deposit. This signs ONE EIP-7702 `executeBatch` that:
+ *   1. `deleteFlow` (close the stream) → returns the ~buffer to the wallet,
+ *   2. `withdrawAll` (USDCx) from the old SmartAccount → returns the streamed-in
+ *      balance to the wallet.
+ * Everything comes back as USDCx (downgrade to USDC afterwards if you want).
+ * Returns the submitted tx hash.
+ */
+export async function recoverOldStream(
+	session: LedgerSession,
+	opts?: { rpcUrl?: string },
+): Promise<Hex> {
+	const { signerEth, address } = session
+	const publicClient = mkClient(opts?.rpcUrl)
+
+	const smartAccount = (await publicClient.readContract({
+		address: OLD_STREAM_VAULTS,
+		abi: SV_READ_ABI,
+		functionName: 'smartAccountOf',
+		args: [address],
+	})) as Address
+	console.log('[Ledger recover] old StreamVaults:', OLD_STREAM_VAULTS, '| smartAccount:', smartAccount)
+	if (smartAccount === ZERO_ADDR) {
+		throw new Error('No SmartAccount found on the old contract for this wallet')
+	}
+
+	// One batch: close the stream, then withdraw the SmartAccount's USDCx.
+	const data = encodeFunctionData({
+		abi: ACCOUNT_ABI,
+		functionName: 'executeBatch',
+		args: [
+			[
+				{
+					target: CFA_FORWARDER,
+					value: 0n,
+					data: encodeFunctionData({ abi: CFA_DELETE_ABI, functionName: 'deleteFlow', args: [USDCX, address, smartAccount, '0x'] }),
+				},
+				{
+					target: smartAccount,
+					value: 0n,
+					data: encodeFunctionData({ abi: SA_WITHDRAW_ABI, functionName: 'withdrawAll', args: [USDCX, address] }),
+				},
+			],
+		],
+	})
+
+	// Self-executed type-4 tx (re-delegate to be safe), Ledger signs both the
+	// delegation and the tx.
+	const txNonce = await publicClient.getTransactionCount({ address })
+	const authNonce = txNonce + 1
+	const authSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
+		signerEth.signDelegationAuthorization(DERIVATION_PATH, CHAIN_ID, SIMPLE_7702_ACCOUNT, authNonce),
+	)
+	const authorization = {
+		chainId: CHAIN_ID,
+		address: SIMPLE_7702_ACCOUNT,
+		nonce: authNonce,
+		r: authSig.r,
+		s: authSig.s,
+		yParity: authSig.v >= 27 ? authSig.v - 27 : authSig.v,
+	} as const
+
+	const fees = await publicClient.estimateFeesPerGas()
+	const txParams = {
+		type: 'eip7702',
+		chainId: CHAIN_ID,
+		nonce: txNonce,
+		to: address,
+		value: 0n,
+		data,
+		authorizationList: [authorization],
+		gas: 1_000_000n,
+		maxFeePerGas: fees.maxFeePerGas,
+		maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+	} as const
+
+	const unsigned = serializeTransaction(txParams)
+	const txSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
+		signerEth.signTransaction(DERIVATION_PATH, hexToBytes(unsigned)),
+	)
+	const signed = serializeTransaction(txParams, {
+		r: txSig.r,
+		s: txSig.s,
+		yParity: txSig.v >= 27 ? txSig.v - 27 : txSig.v,
+	})
+	const hash = await publicClient.sendRawTransaction({ serializedTransaction: signed })
+	console.log('[Ledger recover] tx submitted:', hash, '→ https://basescan.org/tx/' + hash)
+	publicClient
+		.waitForTransactionReceipt({ hash })
+		.then((r) => console.log('[Ledger recover] receipt status:', r.status, '| block', r.blockNumber))
+		.catch((e) => console.error('[Ledger recover] receipt error:', e))
+	return hash
+}
+
+/**
+ * Convert the wallet's USDCx → USDC and send it to `to`, in ONE EIP-7702
+ * `executeBatch` signed by the Ledger: `downgrade(amount)` then
+ * `USDC.transfer(to, amount6)`. Downgrades the full USDCx balance (floored to
+ * 6-dec precision so the SuperToken downgrade doesn't revert on a remainder).
+ * Returns the submitted tx hash.
+ */
+export async function convertUsdcxAndSend(
+	session: LedgerSession,
+	args: { to: Address; rpcUrl?: string },
+): Promise<Hex> {
+	const { signerEth, address } = session
+	const publicClient = mkClient(args.rpcUrl)
+
+	const usdcxBal = (await publicClient.readContract({
+		address: USDCX,
+		abi: ERC20_ABI,
+		functionName: 'balanceOf',
+		args: [address],
+	})) as bigint
+	const usdc6 = usdcxBal / USDCX_TO_USDC_DIVISOR // USDC amount (6 dec)
+	const downgrade18 = usdc6 * USDCX_TO_USDC_DIVISOR // floor to clean 6-dec precision
+	console.log('[Ledger convert] USDCx', usdcxBal.toString(), '→ USDC', usdc6.toString(), '→', args.to)
+	if (usdc6 === 0n) throw new Error('No USDCx to convert (balance below 0.000001)')
+
+	const data = encodeFunctionData({
+		abi: ACCOUNT_ABI,
+		functionName: 'executeBatch',
+		args: [
+			[
+				{ target: USDCX, value: 0n, data: encodeFunctionData({ abi: DOWNGRADE_ABI, functionName: 'downgrade', args: [downgrade18] }) },
+				{ target: USDC, value: 0n, data: encodeFunctionData({ abi: ERC20_ABI, functionName: 'transfer', args: [args.to, usdc6] }) },
+			],
+		],
+	})
+
+	const txNonce = await publicClient.getTransactionCount({ address })
+	const authNonce = txNonce + 1
+	const authSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
+		signerEth.signDelegationAuthorization(DERIVATION_PATH, CHAIN_ID, SIMPLE_7702_ACCOUNT, authNonce),
+	)
+	const authorization = {
+		chainId: CHAIN_ID,
+		address: SIMPLE_7702_ACCOUNT,
+		nonce: authNonce,
+		r: authSig.r,
+		s: authSig.s,
+		yParity: authSig.v >= 27 ? authSig.v - 27 : authSig.v,
+	} as const
+
+	const fees = await publicClient.estimateFeesPerGas()
+	const txParams = {
+		type: 'eip7702',
+		chainId: CHAIN_ID,
+		nonce: txNonce,
+		to: address,
+		value: 0n,
+		data,
+		authorizationList: [authorization],
+		gas: 600_000n,
+		maxFeePerGas: fees.maxFeePerGas,
+		maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+	} as const
+
+	const unsigned = serializeTransaction(txParams)
+	const txSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
+		signerEth.signTransaction(DERIVATION_PATH, hexToBytes(unsigned)),
+	)
+	const signed = serializeTransaction(txParams, {
+		r: txSig.r,
+		s: txSig.s,
+		yParity: txSig.v >= 27 ? txSig.v - 27 : txSig.v,
+	})
+	const hash = await publicClient.sendRawTransaction({ serializedTransaction: signed })
+	console.log('[Ledger convert] tx submitted:', hash, '→ https://basescan.org/tx/' + hash)
+	publicClient
+		.waitForTransactionReceipt({ hash })
+		.then((r) => console.log('[Ledger convert] receipt status:', r.status, '| block', r.blockNumber))
+		.catch((e) => console.error('[Ledger convert] receipt error:', e))
+	return hash
+}
+
+/**
+ * Sign + broadcast a plain (type-2) contract call with the connected Ledger.
+ * Used for every StreamVaults action OTHER than the 7702 onboarding (setStream,
+ * withdraw, redeploySmartAccount, …): the dApp builds the tx, the DMK signs it,
+ * and we broadcast the raw tx. Returns the tx hash.
+ */
+export async function signAndSendTx(
+	session: LedgerSession,
+	tx: { to: Address; data: Hex; value?: bigint; rpcUrl?: string },
+): Promise<Hex> {
+	const { signerEth, address } = session
+	const publicClient = mkClient(tx.rpcUrl)
+	const value = tx.value ?? 0n
+
+	const [nonce, fees, gas] = await Promise.all([
+		publicClient.getTransactionCount({ address }),
+		publicClient.estimateFeesPerGas(),
+		publicClient
+			.estimateGas({ account: address, to: tx.to, data: tx.data, value })
+			.catch(() => 600_000n),
+	])
+
+	const txParams = {
+		type: 'eip1559',
+		chainId: CHAIN_ID,
+		nonce,
+		to: tx.to,
+		value,
+		data: tx.data,
+		gas,
+		maxFeePerGas: fees.maxFeePerGas,
+		maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+	} as const
+
+	const unsigned = serializeTransaction(txParams)
+	const sig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
+		signerEth.signTransaction(DERIVATION_PATH, hexToBytes(unsigned)),
+	)
+	const signed = serializeTransaction(txParams, {
+		r: sig.r,
+		s: sig.s,
+		yParity: sig.v >= 27 ? sig.v - 27 : sig.v,
 	})
 	return publicClient.sendRawTransaction({ serializedTransaction: signed })
 }

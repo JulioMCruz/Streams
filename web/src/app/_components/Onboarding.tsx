@@ -27,6 +27,7 @@ import {
 } from '@/lib/contracts'
 import { buildPermitTypedData, toPermit2612Sig } from '@/lib/permit'
 import { LOCAL_CHAIN_ID } from '@/lib/wagmi'
+import { useWallet } from '@/lib/wallet-context'
 
 import { Card } from './Card'
 import { FaucetCard } from './Faucet'
@@ -112,6 +113,7 @@ function StartStreamBot({
 	const { sendCallsAsync } = useSendCalls()
 	const { writeContractAsync } = useWriteContract()
 	const { data: capabilities } = useCapabilities({ account: userAddress })
+	const { mode, ledgerSession } = useWallet()
 
 	const [budget, setBudget] = useState('60')
 	// Human-friendly rate: "<flowAmount> USDC every <flowEvery> <flowUnit>".
@@ -184,6 +186,24 @@ function StartStreamBot({
 				minTradeAmount: parseUnits(minTrade, 6),
 				settlementAddress: (settlement || userAddress) as Address,
 				targetTokens: [target]
+			}
+
+			// Ledger mode: the whole setup is ONE device-signed EIP-7702 transaction
+			// (delegate to Simple7702Account, then executeBatch grant+approve+start).
+			// The device signs the delegation and the type-4 tx; we broadcast it to
+			// Base mainnet. Two on-device approvals, no permit/EIP-5792 needed.
+			if (mode === 'ledger' && ledgerSession) {
+				setStatus('signing')
+				const { startStreamBotWithLedger } = await import('@/lib/ledger-7702')
+				setStatus('sending')
+				await startStreamBotWithLedger(ledgerSession, {
+					budget: underlyingAmount,
+					rate,
+					rules
+				})
+				setStatus('idle')
+				void refetchSa()
+				return
 			}
 
 			// Local Hardhat mocks can't do EIP-5792/7702 batching and the mock

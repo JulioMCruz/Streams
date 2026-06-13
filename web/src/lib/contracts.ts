@@ -19,10 +19,6 @@ export const ADDRESSES = {
 		process.env.NEXT_PUBLIC_STREAM_VAULTS_CONFIG_ADDRESS,
 		'0x0000000000000000000000000000000000000000'
 	),
-	smartAccountRegistry: pick(
-		process.env.NEXT_PUBLIC_SMART_ACCOUNT_REGISTRY_ADDRESS,
-		'0x0000000000000000000000000000000000000000'
-	),
 	cfaForwarder: pick(
 		process.env.NEXT_PUBLIC_CFA_FORWARDER_ADDRESS,
 		'0xcfA132E353cB4E398080B9700609bb008eceB125'
@@ -128,15 +124,3 @@ export const erc20Abi = parseAbi([
 	'function symbol() view returns (string)',
 	'function approve(address spender, uint256 amount) returns (bool)'
 ])
-
-export const registryAbi = parseAbi([
-	'event NameRegistered(address indexed smartAccount, address indexed user, string label, bytes32 indexed labelHash)',
-	'function register(address sa, string label)',
-	'function release(address sa)',
-	'function setText(string label, string key, string value)',
-	'function smartAccountOf(string label) view returns (address)',
-	'function labelOf(address sa) view returns (string)',
-	'function textOf(string label, string key) view returns (string)'
-])
-
-export const ENS_PARENT = 'streamvault.eth'

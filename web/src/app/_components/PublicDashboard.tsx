@@ -6,8 +6,6 @@ import { useReadContract } from 'wagmi'
 import {
 	ADDRESSES,
 	cfaForwarderAbi,
-	ENS_PARENT,
-	registryAbi,
 	streamVaultsAbi,
 	superTokenAbi
 } from '@/lib/contracts'
@@ -15,7 +13,7 @@ import { isZeroAddress, SECONDS_PER_DAY, truncate } from '@/lib/format'
 import { useSwapHistory } from '@/lib/useSwapHistory'
 
 import { KpiCard } from './KpiCard'
-import { BtcLogo, EnsLogo, UsdcLogo } from './Logos'
+import { BtcLogo, UsdcLogo } from './Logos'
 import { PriceChart } from './PriceChart'
 import { SwapHistory } from './SwapHistory'
 
@@ -27,8 +25,8 @@ const fmt = (v: bigint, decimals: number, max = 4) =>
 	})
 
 /**
- * Read-only public view of any StreamBot, reachable from the landing gallery
- * without a wallet. Shows the bot's identity, live exposure/activity KPIs, the
+ * Read-only public view of any StreamBot, opened by address from the dashboard.
+ * Shows the bot's identity, live exposure/activity KPIs, the
  * BTC market chart with its DCA buys, and its trade log — but none of the
  * operational controls, since only the owner can drive the bot.
  */
@@ -43,12 +41,6 @@ export function PublicDashboard({
 		address: ADDRESSES.streamVaults,
 		abi: streamVaultsAbi,
 		functionName: 'userOf',
-		args: [smartAccount]
-	})
-	const labelQuery = useReadContract({
-		address: ADDRESSES.smartAccountRegistry,
-		abi: registryAbi,
-		functionName: 'labelOf',
 		args: [smartAccount]
 	})
 	const inflight = useReadContract({
@@ -71,9 +63,7 @@ export function PublicDashboard({
 
 	const { data: swaps = [], isLoading } = useSwapHistory(smartAccount)
 
-	const label = labelQuery.data as string | undefined
-	const named = !!label && label.length > 0
-	const name = named ? `${label}.${ENS_PARENT}` : truncate(smartAccount)
+	const name = truncate(smartAccount)
 	const inflightBal = (inflight.data as bigint | undefined) ?? 0n
 	const rate = (flowrate.data as bigint | undefined) ?? 0n
 	const perDay = rate * SECONDS_PER_DAY
@@ -95,7 +85,7 @@ export function PublicDashboard({
 					<div>
 						<div className="flex items-center gap-2">
 							<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
-								{named ? <EnsLogo className="h-5 w-5" /> : '⚙'}
+								⚙
 							</span>
 							<span className="font-mono text-lg text-emerald-400">{name}</span>
 						</div>

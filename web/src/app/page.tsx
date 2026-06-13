@@ -2,19 +2,21 @@
 
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { useAccount, useReadContract } from 'wagmi'
+import { useReadContract } from 'wagmi'
 
 import { ADDRESSES, streamVaultsAbi } from '@/lib/contracts'
 import { isZeroAddress } from '@/lib/format'
+import { useWallet } from '@/lib/wallet-context'
 
 import { Dashboard } from './_components/Dashboard'
 import { Landing } from './_components/Landing'
 import { Onboarding } from './_components/Onboarding'
 import { PublicDashboard } from './_components/PublicDashboard'
+import { RecoverOldFunds } from './_components/RecoverOldFunds'
 import { TopNav } from './_components/TopNav'
 
 export default function Page() {
-	const { address, isConnected } = useAccount()
+	const { address, isConnected } = useWallet()
 
 	// Read-only bot the visitor is exploring from the landing gallery/search.
 	const [exploreBot, setExploreBot] = useState<Address | null>(null)
@@ -51,6 +53,10 @@ export default function Page() {
 		<>
 			<TopNav onHome={goHome} />
 			<main className="flex-1 min-h-0 overflow-y-auto">
+				{/* Shown only in Ledger mode — recovers funds from the old contract. */}
+				<div className="mx-auto w-full max-w-3xl px-4 pt-4 empty:hidden">
+					<RecoverOldFunds />
+				</div>
 				{exploreBot ? (
 					// Read-only bot view — works connected or not.
 					<PublicDashboard
@@ -60,13 +66,11 @@ export default function Page() {
 				) : showLanding ? (
 					// Brand-triggered landing, even when connected.
 					<Landing
-						onSelectBot={selectBot}
 						isConnected={Boolean(isConnected && address)}
 						onEnter={() => setShowLanding(false)}
 					/>
 				) : !isConnected || !address ? (
 					<Landing
-						onSelectBot={selectBot}
 						isConnected={false}
 						onEnter={() => setShowLanding(false)}
 					/>
