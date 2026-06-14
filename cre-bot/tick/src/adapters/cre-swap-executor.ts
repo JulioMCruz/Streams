@@ -10,7 +10,7 @@ import { writeStreamVaultsReport } from '../utils/write-report'
 
 /**
  * CRE replacement for `viem-swap-executor.ts` — **THE one adapter** the CRE
- * migration swaps in (see bot/CLAUDE.md). Domain, ports and the use case are
+ * migration swaps in. Domain, ports and the use case are
  * reused verbatim; only the signing path changes.
  *
  * Baseline: `walletClient.writeContract(StreamVaults.executeSwap)` signed by the
