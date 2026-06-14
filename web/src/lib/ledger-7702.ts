@@ -252,6 +252,7 @@ export async function connectLedger(): Promise<LedgerSession> {
 	const sessionId = await dmk.connect({ device })
 	const signerEth = new SignerEthBuilder({ dmk, sessionId }).build()
 	const { address } = await runDeviceAction<{ address: Address }>(signerEth.getAddress(DERIVATION_PATH))
+	console.log('[Ledger] connected address:', address, '| path', DERIVATION_PATH)
 	return { signerEth, address }
 }
 
@@ -273,7 +274,7 @@ export async function signDelegationDryRun(rpcUrl?: string): Promise<{
 }> {
 	const publicClient = mkClient(rpcUrl)
 	const { signerEth, address } = await connectLedger()
-	const nonce = await publicClient.getTransactionCount({ address })
+	const nonce = await publicClient.getTransactionCount({ address, blockTag: 'pending' })
 	const sig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
 		signerEth.signDelegationAuthorization(DERIVATION_PATH, CHAIN_ID, SIMPLE_7702_ACCOUNT, nonce),
 	)
@@ -326,7 +327,7 @@ export async function startStreamBotWithLedger(
 
 	// Self-executed type-4 tx: the outer tx consumes `txNonce`, so the 7702
 	// authorization must carry `txNonce + 1` (the well-known self-sponsor rule).
-	const txNonce = await publicClient.getTransactionCount({ address })
+	const txNonce = await publicClient.getTransactionCount({ address, blockTag: 'pending' })
 	const authNonce = txNonce + 1
 
 	// 1. Ledger signs the EIP-7702 delegation → Simple7702Account.
@@ -460,7 +461,7 @@ export async function recoverOldStream(
 
 	// Self-executed type-4 tx (re-delegate to be safe), Ledger signs both the
 	// delegation and the tx.
-	const txNonce = await publicClient.getTransactionCount({ address })
+	const txNonce = await publicClient.getTransactionCount({ address, blockTag: 'pending' })
 	const authNonce = txNonce + 1
 	const authSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
 		signerEth.signDelegationAuthorization(DERIVATION_PATH, CHAIN_ID, SIMPLE_7702_ACCOUNT, authNonce),
@@ -542,7 +543,7 @@ export async function convertUsdcxAndSend(
 		],
 	})
 
-	const txNonce = await publicClient.getTransactionCount({ address })
+	const txNonce = await publicClient.getTransactionCount({ address, blockTag: 'pending' })
 	const authNonce = txNonce + 1
 	const authSig = await runDeviceAction<{ r: Hex; s: Hex; v: number }>(
 		signerEth.signDelegationAuthorization(DERIVATION_PATH, CHAIN_ID, SIMPLE_7702_ACCOUNT, authNonce),
@@ -603,7 +604,7 @@ export async function signAndSendTx(
 	const value = tx.value ?? 0n
 
 	const [nonce, fees, gas] = await Promise.all([
-		publicClient.getTransactionCount({ address }),
+		publicClient.getTransactionCount({ address, blockTag: 'pending' }),
 		publicClient.estimateFeesPerGas(),
 		publicClient
 			.estimateGas({ account: address, to: tx.to, data: tx.data, value })
