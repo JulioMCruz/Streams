@@ -1,14 +1,14 @@
 # StreamVaults
 
-> Capital streaming as a security layer for DeFi. **Pay your DCA agent while you use it** — the protocol only ever holds the capital that has already streamed in.
+> Capital streaming as a security layer for DeFi. **Pay your DCA agent while you use it.** The protocol only ever holds the capital that has already streamed in.
 
-Instead of locking a lump sum in a vault, the user opens a [Superfluid](https://www.superfluid.finance/) stream toward a **per-user autonomous smart account** that dollar-cost-averages into WETH/WBTC on Uniswap and settles the output straight back to the user's wallet. Exposure is bounded to **hours of flow, not full TVL** — if an exploit ever hit a stream-based vault, the loss would be measured in hours of streamed capital.
+Instead of locking a lump sum in a vault, the user opens a [Superfluid](https://www.superfluid.finance/) stream toward a **per-user autonomous smart account** that dollar-cost-averages into WETH/WBTC on Uniswap and settles the output straight back to the user's wallet. Exposure is bounded to **hours of flow, not full TVL**. If an exploit ever hit a stream-based vault, the loss would be measured in hours of streamed capital.
 
 Live on **Base mainnet** (chainId `8453`).
 
 ## How it works
 
-**Everything starts from the user's Ledger.** Onboarding is signed in hardware — a single EIP-7702 device signature (with ERC-7730 clear signing) wraps USDC, deploys the user's smart account, and opens the stream in one atomic transaction. The live flow is tested end-to-end from a real Ledger device.
+**Everything starts from the user's Ledger.** Onboarding is signed in hardware: a single EIP-7702 device signature (with ERC-7730 clear signing) wraps USDC, deploys the user's smart account, and opens the stream in one atomic transaction. The live flow is tested end-to-end from a real Ledger device.
 
 ### Architecture
 
@@ -40,7 +40,7 @@ flowchart TB
     SA -->|settle output| user
 ```
 
-### User onboarding — starts at the Ledger
+### User onboarding (starts at the Ledger)
 
 ```mermaid
 sequenceDiagram
@@ -54,7 +54,7 @@ sequenceDiagram
     W->>L: sign EIP-7702 delegation (Simple7702Account) + EIP-2612 permit
     L-->>U: clear-sign on device (ERC-7730)
     L-->>W: signed authorization
-    W->>SV: startStreamBot — one type-4 tx
+    W->>SV: startStreamBot (one type-4 tx)
     SV->>SV: pull USDC, wrap to USDCx
     SV->>SV: deploy SmartAccountDCA + set rules
     SV->>SF: open stream (user to SmartAccount)
@@ -62,7 +62,7 @@ sequenceDiagram
     SV-->>U: onboarded with a single signature
 ```
 
-### DCA execution — the agent
+### DCA execution (the agent)
 
 ```mermaid
 sequenceDiagram
@@ -76,7 +76,7 @@ sequenceDiagram
         Agent->>SV: read accounts + stream health
         Agent->>UNI: fetch quote (Trading API)
         Agent->>SV: executeSwap(account, params)
-        SV->>SA: forward — whitelist + cooldown checks
+        SV->>SA: forward (whitelist + cooldown checks)
         SA->>SA: downgrade USDCx to USDC
         SA->>UNI: swap USDC to WETH / WBTC
         UNI-->>SA: output token
@@ -100,6 +100,17 @@ flowchart LR
 
 The user keeps a **kill switch**: revoking the Superfluid flow-operator permission stops everything. Exposure is bounded to the streamed balance, never the full deposit.
 
+## Two executors, one contract
+
+The DCA logic does not have to run as our Node worker. The agent is written in a hexagonal style, with the strategy, cooldown, and stream guard kept pure behind ports, so the exact same core can run two ways:
+
+- **Stream Vault Agent (Node worker).** A single hot key calls `StreamVaults.executeSwap`. It is fast to run, easy to debug, and what we deploy today as the baseline executor.
+- **Chainlink CRE workflow.** The same DCA tick runs on a decentralized oracle network. Instead of one key, the DON reaches consensus on the reads, the quote, and the write, then lands a DON-attested report on Base through the `KeystoneForwarder` into `StreamVaults.onReport`.
+
+The seam between them is the contract. Both paths land in the same internal logic, so every on-chain guard (target and token whitelists, slippage floor, swap cooldown, stream auto-close) applies either way. `onReport` is gated to `config.bot()` and reuses those guards, so it is not a backdoor. Switching from one executor to the other is a single owner transaction that repoints `config.bot()` to the EOA or to the forwarder, and it is reversible.
+
+The CRE path removes the single-key trust assumption: there is no private key to leak, and execution becomes verifiable and censorship resistant. We verified the workflow landing a real `executeSwap` on Base mainnet through `onReport`.
+
 ## Live on Base mainnet
 
 | Contract | Address |
@@ -112,12 +123,12 @@ Tokens: USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` · USDCx `0xD04383398d
 ## Monorepo layout
 
 ```
-contracts/      Hardhat — Solidity (StreamVaults gateway, SmartAccountDCA strategy),
-                deploy scripts, tasks, ERC-7730 descriptors, EIP-7702 PoCs
-bot/            Node.js agent (hexagonal) — discovers accounts, decides DCA, swaps
-web/            Next.js dApp — Reown + EIP-5792 batch, Ledger EIP-7702 onboarding
-cre-bot/        Alternative executor as a Chainlink CRE workflow (optional)
-accounts-stub/  Internal shim for an unused @wagmi/core dynamic import — do not delete
+contracts/      Hardhat + Solidity (StreamVaults gateway, SmartAccountDCA
+                strategy), deploy scripts, tasks, ERC-7730 descriptors, EIP-7702 PoCs
+bot/            Node.js agent (hexagonal): discovers accounts, decides DCA, swaps
+web/            Next.js dApp: Reown + EIP-5792 batch, Ledger EIP-7702 onboarding
+cre-bot/        The same DCA tick as a Chainlink CRE workflow (alternative executor)
+accounts-stub/  Internal shim for an unused @wagmi/core dynamic import (do not delete)
 ```
 
 The agent and the CRE workflow are interchangeable executors over the same on-chain seam; whichever address sits in `config.bot()` is the active one.
@@ -173,9 +184,9 @@ yarn workspace @streams/web test            # web (Vitest)
 
 ## Networks
 
-- **Base mainnet** (8453) — live target.
-- **Base Sepolia** (84532) — testnet (Uniswap Trading API coverage is thin).
-- **Hardhat local** (31337) — full mock stack for end-to-end testing.
+- **Base mainnet** (8453): live target.
+- **Base Sepolia** (84532): testnet (Uniswap Trading API coverage is thin).
+- **Hardhat local** (31337): full mock stack for end-to-end testing.
 
 ## License
 
