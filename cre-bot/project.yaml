@@ -42,3 +42,11 @@ production-settings:
     - chain-name: ethereum-mainnet-base-1
       url: https://base-rpc.publicnode.com
 
+# ==========================================================================
+# Local anvil fork of Base mainnet (started on :8546) — for `simulate --broadcast`
+# end-to-end CRE writes without waiting on Chainlink deploy access.
+fork-settings:
+  rpcs:
+    - chain-name: ethereum-mainnet-base-1
+      url: http://127.0.0.1:8546
+
